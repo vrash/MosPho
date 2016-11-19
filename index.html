@@ -19,34 +19,42 @@
     </section>
 
     <section class="main-content">
-      <h3>
-<a id="mospho" class="anchor" href="#mospho" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>MosPho</h3>
+      <h2>
+<a id="mospho" class="anchor" href="#mospho" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>MosPho</h2>
 
-<p>Basic image mosaic creator</p>
+<p>Basic image mosaic creator. Also Phil Karlton apparently once said</p>
 
-<h2>
-<a id="implementation" class="anchor" href="#implementation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Implementation</h2>
+<blockquote>
+<p>There are only two hard things in Computer Science: cache invalidation and naming things</p>
+</blockquote>
 
-<p>Bare bones. As much background processing as possible. As many code complete tenets followed as possible
-No Picasso/Fresco/Retrofit and other things. No real OOP. Does the job for an MVP though and I'd be happy to ship and measure progress before building a beast. If there's no network, I pick up average chunk colours and display the mosaic.</p>
+<p>Hence the poor name choice. The 's' wasnt there in the original title. </p>
 
-<h1>
-<a id="logic" class="anchor" href="#logic" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Logic</h1>
+<h3>
+<a id="implementation" class="anchor" href="#implementation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Implementation</h3>
 
-<p>Very Simple. 
-1.) FETCH IMAGE FROM WHEREVER THE USER WANTS TO
-2.) SPLIT IMAGE INTO SMALLER PIECES
-3.) RUN EACH ROW THROUGH THE NETWORK TO FIND THE EQUIVALENT IMAGE
-4.) STITCH THE IMAGE BACK
-5.) DISPLAY MOSAIC AND VOILA, WE'RE DONE.</p>
+<p>Bare bones. As much background processing as possible. No Picasso/Fresco/Retrofit and other things. No real OOP. Does the job for an MVP though and I'd be happy to ship and measure progress before building a beast. If there's no network, I pick up average chunk colours and display the mosaic.</p>
 
-<h2>
-<a id="minsdk" class="anchor" href="#minsdk" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>MinSDK</h2>
+<h3>
+<a id="logic" class="anchor" href="#logic" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Logic</h3>
+
+<p>Very Simple. </p>
+
+<ul>
+<li>FETCH IMAGE FROM WHEREVER THE USER WANTS TO</li>
+<li>SPLIT IMAGE INTO SMALLER PIECES</li>
+<li>RUN EACH ROW THROUGH THE NETWORK TO FIND THE EQUIVALENT IMAGE</li>
+<li>STITCH THE IMAGE BACK</li>
+<li>DISPLAY MOSAIC AND VOILA, WE'RE DONE.</li>
+</ul>
+
+<h3>
+<a id="minsdk" class="anchor" href="#minsdk" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>MinSDK</h3>
 
 <p>KitKat - API 19. Reason is that still a large % of users are on kitkat and although tempting to set minSDK to Lollipop (and get all the Palette class goodness) this is better for bare bones coding and manipulation. </p>
 
-<h2>
-<a id="screengrabs-of-important-functionality" class="anchor" href="#screengrabs-of-important-functionality" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>ScreenGrabs of important functionality</h2>
+<h3>
+<a id="screengrabs-of-important-functionality" class="anchor" href="#screengrabs-of-important-functionality" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>ScreenGrabs of important functionality</h3>
 
 <h3>
 <a id="authors-and-contributors" class="anchor" href="#authors-and-contributors" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Authors and Contributors</h3>
