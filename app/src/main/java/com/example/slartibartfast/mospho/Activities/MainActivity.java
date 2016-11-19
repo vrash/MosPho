@@ -38,12 +38,15 @@ Logic is simple overall
 3.) RUN EACH ROW THROUGH THE NETWORK TO FIND THE EQUIVALENT IMAGE
 4.) STITCH THE IMAGE BACK ROW BY ROW
 5.) DISPLAY MOSAIC AND VOILA, WE'RE DONE.
+
+Not using Palette class, since that would be cheating :)
 */
 
 public class MainActivity extends AppCompatActivity {
     private static int RESULT_LOAD_IMAGE = 1;
     Context mContext = this;
     ArrayList<Bitmap> smallImages;
+    ArrayList<Bitmap> newSmallImagesList;
     //Global static for number of chunks to break the images.
     //Calculated as width * height
     // For 32X32 = 1024.
@@ -108,9 +111,10 @@ public class MainActivity extends AppCompatActivity {
             Bitmap originalMutable = originalImage.copy(originalImage.getConfig(), true);
 
             //Split the image into chunks
-            splitImageIntoChunks(originalImage, numberOfBlocks);
-            ImageView imgView = (ImageView) findViewById(R.id.imageView);
-            imgView.setImageBitmap(originalImage);
+            new splitImageIntoChunksAsync(originalImage, numberOfBlocks).executeOnExecutor(AsyncTask.SERIAL_EXECUTOR);
+            new fetchAverageColourPerChunkAsync().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR);
+            new stitchMosaicImageTogetherAsync().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR);
+
         }
     }
 
@@ -169,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
 
         displayImageOnTheGrid(chunkedImages);
         //stitchMosaicImageTogether(smallImages);
-        new stitchMosaicImageTogetherAsync(smallImages).execute();
+
     }
 
 
@@ -195,34 +199,45 @@ public class MainActivity extends AppCompatActivity {
         imgView.setImageBitmap(bmp);
     }
 
+    class fetchAverageColourPerChunkAsync extends AsyncTask<Void, Void, Void> {
+
+        protected Void doInBackground(Void... arg0) {
+            //Check if the device is connected to the network
+            if (!Utils.isConnected(mContext))
+                Toast.makeText(mContext, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
+            newSmallImagesList = new ArrayList<Bitmap>();
+            //Before doing the networky stuff, try fetching the dominant colour and create the mosaic.
+            for (Bitmap chunk : smallImages) {
+                int chunkAverage = Utils.getAverageDominantColourFromBitmap(chunk);
+                Bitmap image = Bitmap.createBitmap(chunk.getWidth(), chunk.getHeight(), Bitmap.Config.ARGB_8888);
+                image.eraseColor(chunkAverage);
+                newSmallImagesList.add(image);
+            }
+            smallImages = newSmallImagesList;
+            return null;
+        }
+
+        protected void onPostExecute(Void bitmap) {
+
+        }
+    }
+
     /**
      * Run a seperate thread to parallely fetch colours per row of bitmap from the network
-     *
-     * @param bitmap
      */
-    private void fetchColourPerBitmapFromNetwork(Bitmap bitmap) {
-        //Check if the device is connected to the network
-        if (!Utils.isConnected(mContext))
-            Toast.makeText(mContext, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
-
+    private void fetchColourPerBitmapFromNetwork() {
 
     }
 
     class stitchMosaicImageTogetherAsync extends AsyncTask<Bitmap, Bitmap, Bitmap> {
-        ArrayList<Bitmap> imagesToBeStitchedTogether;
         Bitmap bitmap;
-
-        public stitchMosaicImageTogetherAsync(ArrayList<Bitmap> imgList) {
-            super();
-            imagesToBeStitchedTogether = imgList;
-        }
 
         protected Bitmap doInBackground(Bitmap... arg0) {
 
             try {
                 //Get the width and height of the smaller chunks
-                int chunkWidth = imagesToBeStitchedTogether.get(0).getWidth();
-                int chunkHeight = imagesToBeStitchedTogether.get(0).getHeight();
+                int chunkWidth = smallImages.get(0).getWidth();
+                int chunkHeight = smallImages.get(0).getHeight();
                 int widthBlock = (int) Math.sqrt(numberOfBlocks);
                 int heightBlock = (int) Math.sqrt(numberOfBlocks);
                 //create a bitmap of a size which can hold the complete image after merging
@@ -233,7 +248,7 @@ public class MainActivity extends AppCompatActivity {
                 int count = 0;
                 for (int rows = 0; rows < widthBlock; rows++) {
                     for (int cols = 0; cols < heightBlock; cols++) {
-                        canva.drawBitmap(imagesToBeStitchedTogether.get(count), chunkWidth * cols, chunkHeight * rows, null);
+                        canva.drawBitmap(smallImages.get(count), chunkWidth * cols, chunkHeight * rows, null);
                         count++;
                     }
                 }
@@ -244,33 +259,55 @@ public class MainActivity extends AppCompatActivity {
             return bitmap;
         }
 
-
         protected void onPostExecute(Bitmap bitmap) {
             displayImageOnTheImageView(bitmap, R.id.imageView);
         }
     }
 
-    public void stitchMosaicImageTogether(ArrayList<Bitmap> imagesToBeStitchedTogether) {
-        try {
-            //Get the width and height of the smaller chunks
-            int chunkWidth = imagesToBeStitchedTogether.get(0).getWidth();
-            int chunkHeight = imagesToBeStitchedTogether.get(0).getHeight();
+    class splitImageIntoChunksAsync extends AsyncTask<Bitmap, ArrayList<Bitmap>, ArrayList<Bitmap>> {
+        Bitmap bitmap;
+        int chunkNumbers;
 
-            //create a bitmap of a size which can hold the complete image after merging
-            Bitmap bitmap = Bitmap.createBitmap(chunkWidth * 32, chunkHeight * 32, Bitmap.Config.ARGB_4444);
+        public splitImageIntoChunksAsync(Bitmap bmp, int chunksAsync) {
+            super();
+            bitmap = bmp;
+            chunkNumbers = chunksAsync;
+        }
 
-            //create a canvas for drawing all those small images
-            Canvas canva = new Canvas(bitmap); //pun intended
-            int count = 0;
-            for (int rows = 0; rows < 32; rows++) {
-                for (int cols = 0; cols < 32; cols++) {
-                    canva.drawBitmap(imagesToBeStitchedTogether.get(count), chunkWidth * cols, chunkHeight * rows, null);
-                    count++;
+        protected ArrayList<Bitmap> doInBackground(Bitmap... arg0) {
+            //For the number of rows and columns of the grid to be displayed
+            int rows, cols;
+
+            //For height and width of the small image chunks
+            int chunkHeight, chunkWidth;
+
+            //To store all the small image chunks in bitmap format in this list
+            ArrayList<Bitmap> chunkedImages = new ArrayList<Bitmap>(chunkNumbers);
+
+            Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, bitmap.getWidth(), bitmap.getHeight(), true);
+
+            rows = cols = (int) Math.sqrt(chunkNumbers);
+            chunkHeight = bitmap.getHeight() / rows;
+            chunkWidth = bitmap.getWidth() / cols;
+
+            //x and y are the pixel positions of the image chunks
+            int yCoord = 0;
+            for (int x = 0; x < rows; x++) {
+                int xCoord = 0;
+                for (int y = 0; y < cols; y++) {
+                    chunkedImages.add(Bitmap.createBitmap(scaledBitmap, xCoord, yCoord, chunkWidth, chunkHeight));
+                    xCoord += chunkWidth;
                 }
+                yCoord += chunkHeight;
             }
-            displayImageOnTheImageView(bitmap, R.id.imageView);
-        } catch (Exception ex) {
-            //It will probably throw OOM for large chunks. Do nothing for now, ideally run it through crashlytics in production.
+            smallImages = chunkedImages;
+            return chunkedImages;
+
+        }
+
+
+        protected void onPostExecute(ArrayList<Bitmap> chunkedImages) {
+            displayImageOnTheGrid(chunkedImages);
         }
     }
 

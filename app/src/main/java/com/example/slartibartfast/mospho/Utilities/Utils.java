@@ -19,9 +19,8 @@ public class Utils {
      * total number of pixels.
      *
      * @param image is a Bitmap object.
-     * @return ArrayList<R, G, B> with each of R,G,B being Integers.
      */
-    public ArrayList<Integer> getAverageDominantColourFromBitmap(Bitmap image) {
+    public static int getAverageDominantColourFromBitmap(Bitmap image) {
         int width = image == null ? 0 : image.getWidth();
         int height = image == null ? 0 : image.getHeight();
         int numPixels = width * height;
@@ -39,12 +38,18 @@ public class Utils {
             blue += Color.blue(pixels[x]);
         }
 
-        ArrayList<Integer> average = new ArrayList<Integer>();
-        average.add(red / numPixels);
-        average.add(green / numPixels);
-        average.add(blue / numPixels);
-        // Return the RGB average of the image.
-        return average;
+        red = red / numPixels;
+        green = green / numPixels;
+        blue = blue / numPixels;
+        return getIntFromColor(red, green, blue);
+    }
+
+    public static int getIntFromColor(int Red, int Green, int Blue) {
+        Red = (Red << 16) & 0x00FF0000; //Shift red 16-bits and mask out other stuff
+        Green = (Green << 8) & 0x0000FF00; //Shift Green 8-bits and mask out other stuff
+        Blue = Blue & 0x000000FF; //Mask out anything not blue.
+
+        return 0xFF000000 | Red | Green | Blue; //0xFF000000 for 100% Alpha. Bitwise OR everything together.
     }
 
     /**
