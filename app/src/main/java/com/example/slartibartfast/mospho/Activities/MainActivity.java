@@ -27,17 +27,21 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.ImageLoader;
 import com.android.volley.toolbox.ImageRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.slartibartfast.mospho.Adapters.ImageAdapter;
 import com.example.slartibartfast.mospho.ApplicationConstants;
+import com.example.slartibartfast.mospho.Network.LruBitmapCache;
+import com.example.slartibartfast.mospho.Network.VolleySingleton;
 import com.example.slartibartfast.mospho.R;
 import com.example.slartibartfast.mospho.Utilities.Utils;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
@@ -58,11 +62,12 @@ Not using Palette class, since that would be cheating :)
 */
 
 public class MainActivity extends AppCompatActivity {
-    public final String TAG = this.getLocalClassName();
+    public final String TAG = MainActivity.class.getName();
     private static int RESULT_LOAD_IMAGE = 1;
     Context mContext = this;
     ArrayList<Bitmap> smallImages;
     ArrayList<Bitmap> newSmallImagesList;
+    LruBitmapCache bitmapCache;
     //Global static for number of chunks to break the images.
     //Calculated as width * height
     // For 32X32 = 1024.
@@ -84,8 +89,10 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         verifyStoragePermissions(this);
+        bitmapCache = new LruBitmapCache(mContext);
         //Simple button to select an image from the device
         Button buttonLoadImage = (Button) findViewById(R.id.buttonLoadPicture);
+
         buttonLoadImage.setOnClickListener(new View.OnClickListener() {
 
             @Override
@@ -181,47 +188,70 @@ public class MainActivity extends AppCompatActivity {
     class fetchAverageColourPerChunkAsync extends AsyncTask<Void, Void, Void> {
         boolean isThereNetworkMate = true;
         Bitmap image;
+        String buildUglyURL;
 
         protected Void doInBackground(Void... arg0) {
-
-
-            newSmallImagesList = new ArrayList<>();
-            //If there's no internet, just default to the mosaic tile from the source image for good UX.
-            if (!Utils.isConnected(mContext)) {
-                isThereNetworkMate = false;
-                for (Bitmap chunk : smallImages) {
-                    String chunkAverage = Utils.getAverageDominantColourFromBitmap(chunk);
-                    image = Bitmap.createBitmap(chunk.getWidth(), chunk.getHeight(), Bitmap.Config.ARGB_8888);
-                    image.eraseColor(Integer.decode(chunkAverage));
-                    newSmallImagesList.add(image);
+            try {
+                newSmallImagesList = new ArrayList<>();
+                //If there's no internet, just default to the mosaic tile from the source image for good UX.
+                if (!Utils.isConnected(mContext)) {
+                    isThereNetworkMate = false;
+                    for (Bitmap chunk : smallImages) {
+                        int chunkAverage = Utils.getAverageIntDominantColourFromBitmap(chunk);
+                        image = Bitmap.createBitmap(chunk.getWidth(), chunk.getHeight(), Bitmap.Config.ARGB_8888);
+                        image.eraseColor(chunkAverage);
+                        newSmallImagesList.add(image);
+                    }
                 }
-            }
-            //Internet -- YESS!
-            // Can use Picasso/Fresco, but again, that would be cheating. :)
-            // Cheating a little with Volley, but Volley is almost a part of Android now, not like I am using Retrofit :P
-            else {
-                for (Bitmap chunk : smallImages) {
-                    String chunkAverage = Utils.getAverageDominantColourFromBitmap(chunk);
-                    // Instantiate the RequestQueue.
-                    String buildUglyURL = ApplicationConstants.URL_OF_MOSAIC_SERVER + chunk.getWidth() + "/" + chunk.getHeight() + "/" + chunkAverage;
-                    RequestQueue queue = Volley.newRequestQueue(mContext);
-                    ImageRequest imageRequest = new ImageRequest(buildUglyURL, new Response.Listener<Bitmap>() {
-                        @Override
-                        public void onResponse(Bitmap response) {
-                            // Assign the response to an ImageView
-                            image = response;
+                //Internet -- YESS!
+                // Can use Picasso/Fresco, but again, that would be cheating. :)
+                // Cheating a little with Volley, but Volley is almost a part of Android now, not like I am using Retrofit :P
+                else {
+                    for (Bitmap chunk : smallImages) {
+                        String chunkAverage = Utils.getAverageDominantColourFromBitmap(chunk);
+                        // Instantiate the RequestQueue.
+                        buildUglyURL = ApplicationConstants.URL_OF_MOSAIC_SERVER + chunk.getWidth() + "/" + chunk.getHeight() + "/" + chunkAverage;
+                        //String buildUglyURL = "http://l.yimg.com/a/i/us/we/52/21.gif";
+                        //RequestQueue queue = Volley.newRequestQueue(mContext);
+                        RequestQueue queue = VolleySingleton.getInstance(mContext.getApplicationContext()).
+                                getRequestQueue();
+
+                        if (bitmapCache.getBitmap(buildUglyURL) != null) {
+                            newSmallImagesList.add(bitmapCache.getBitmap(buildUglyURL));
+                        } else {
+                            ImageRequest imageRequest = new ImageRequest(buildUglyURL, new Response.Listener<Bitmap>() {
+                                @Override
+                                public void onResponse(Bitmap response) {
+                                    // Assign the response to an ImageView
+                                    newSmallImagesList.add(response);
+                                    bitmapCache.putBitmap(buildUglyURL, response);
+                                }
+                            }, chunk.getWidth(), chunk.getHeight(), ImageView.ScaleType.FIT_CENTER, Bitmap.Config.ARGB_8888, new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    String body;
+                                    //get status code here
+                                    String statusCode = String.valueOf(error.networkResponse.statusCode);
+                                    //get response body and parse with appropriate encoding
+                                    if (error.networkResponse.data != null) {
+                                        try {
+                                            body = new String(error.networkResponse.data, "UTF-8");
+                                        } catch (Exception e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                    Log.d(TAG, error.toString());
+                                }
+                            });
+                            //add request to queue
+                            VolleySingleton.getInstance(mContext).addToRequestQueue(imageRequest);
                         }
-                    }, chunk.getWidth(), chunk.getHeight(), ImageView.ScaleType.FIT_CENTER, Bitmap.Config.ARGB_8888, new Response.ErrorListener() {
-                        @Override
-                        public void onErrorResponse(VolleyError error) {
-                            Log.d(TAG, error.toString());
-                        }
-                    });
-                    //add request to queue
-                    queue.add(imageRequest);
-                    newSmallImagesList.add(image);
+                    }
+
                 }
 
+            } catch (Exception ex) {
+                //Catch OOM's here
             }
             return null;
         }
@@ -240,8 +270,8 @@ public class MainActivity extends AppCompatActivity {
 
             try {
                 //Get the width and height of the smaller chunks
-                int chunkWidth = smallImages.get(0).getWidth();
-                int chunkHeight = smallImages.get(0).getHeight();
+                int chunkWidth = newSmallImagesList.get(0).getWidth();
+                int chunkHeight = newSmallImagesList.get(0).getHeight();
                 int widthBlock = (int) Math.sqrt(numberOfBlocks);
                 int heightBlock = (int) Math.sqrt(numberOfBlocks);
                 //create a bitmap of a size which can hold the complete image after merging
@@ -252,7 +282,7 @@ public class MainActivity extends AppCompatActivity {
                 int count = 0;
                 for (int rows = 0; rows < widthBlock; rows++) {
                     for (int cols = 0; cols < heightBlock; cols++) {
-                        canva.drawBitmap(smallImages.get(count), chunkWidth * cols, chunkHeight * rows, null);
+                        canva.drawBitmap(newSmallImagesList.get(count), chunkWidth * cols, chunkHeight * rows, null);
                         count++;
                     }
                 }

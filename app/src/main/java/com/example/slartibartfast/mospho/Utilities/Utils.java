@@ -42,8 +42,34 @@ public class Utils {
         red = red / numPixels;
         green = green / numPixels;
         blue = blue / numPixels;
-        String hex = String.format("#%02x%02x%02x", red, green, blue);
+        String hex = String.format("%02x%02x%02x", red, green, blue);
         return hex;
+    }
+
+    public static int getAverageIntDominantColourFromBitmap(Bitmap image) {
+
+        int width = image == null ? 0 : image.getWidth();
+        int height = image == null ? 0 : image.getHeight();
+        int numPixels = width * height;
+        int red = 0;
+        int green = 0;
+        int blue = 0;
+
+        int[] pixels = new int[numPixels];
+        // Get all the pixels in the image and iterate over them
+        // to find their R,G,B values.
+        image.getPixels(pixels, 0, width, 0, 0, width, height);
+        for (int x = 0; x < numPixels; x++) {
+            red += Color.red(pixels[x]);
+            green += Color.green(pixels[x]);
+            blue += Color.blue(pixels[x]);
+        }
+
+        red = red / numPixels;
+        green = green / numPixels;
+        blue = blue / numPixels;
+
+        return getIntFromColor(red, green, blue);
     }
 
     //
