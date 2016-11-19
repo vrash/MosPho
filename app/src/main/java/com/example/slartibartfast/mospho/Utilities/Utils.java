@@ -1,7 +1,10 @@
 package com.example.slartibartfast.mospho.Utilities;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 
 import java.util.ArrayList;
 
@@ -44,5 +47,19 @@ public class Utils {
         return average;
     }
 
-
+    /**
+     * Check if there is any connectivity
+     *
+     * @param context
+     * @return
+     */
+    public static boolean isConnected(Context context) {
+        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo info = cm.getActiveNetworkInfo();
+        return (info != null && info.isConnected());
+    }
 }
+
+
+
+

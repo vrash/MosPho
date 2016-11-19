@@ -2,26 +2,30 @@ package com.example.slartibartfast.mospho.Activities;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.media.Image;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 
 import com.example.slartibartfast.mospho.Adapters.ImageAdapter;
 import com.example.slartibartfast.mospho.R;
+import com.example.slartibartfast.mospho.Utilities.Utils;
 
 import java.util.ArrayList;
 
@@ -38,6 +42,7 @@ Logic is simple overall
 
 public class MainActivity extends AppCompatActivity {
     private static int RESULT_LOAD_IMAGE = 1;
+    Context mContext = this;
     ArrayList<Bitmap> smallImages;
     //Global static for number of chunks to break the images.
     //Calculated as width * height
@@ -101,7 +106,9 @@ public class MainActivity extends AppCompatActivity {
             Bitmap originalImage = BitmapFactory.decodeFile(picturePath);
             //Keep a copy
             Bitmap originalMutable = originalImage.copy(originalImage.getConfig(), true);
-            splitImage(originalImage, numberOfBlocks);
+
+            //Split the image into chunks
+            splitImageIntoChunks(originalImage, numberOfBlocks);
             ImageView imgView = (ImageView) findViewById(R.id.imageView);
             imgView.setImageBitmap(originalImage);
         }
@@ -132,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
      * @param bitmap
      * @param chunkNumbers
      */
-    private void splitImage(Bitmap bitmap, int chunkNumbers) {
+    public void splitImageIntoChunks(Bitmap bitmap, int chunkNumbers) {
 
         //For the number of rows and columns of the grid to be displayed
         int rows, cols;
@@ -160,12 +167,32 @@ public class MainActivity extends AppCompatActivity {
             yCoord += chunkHeight;
         }
 
+        displayImageOnTheGrid(chunkedImages);
+        //stitchMosaicImageTogether(smallImages);
+        new stitchMosaicImageTogetherAsync(smallImages).execute();
+    }
+
+
+    /**
+     * Single Responsibility: Print to the grid.
+     *
+     * @param imgList
+     */
+    public void displayImageOnTheGrid(ArrayList<Bitmap> imgList) {
         //Getting the grid view and setting an adapter to it
         GridView grid = (GridView) findViewById(R.id.gridview);
-        grid.setAdapter(new ImageAdapter(this, chunkedImages));
-        grid.setNumColumns((int) Math.sqrt(chunkedImages.size()));
-        smallImages = chunkedImages;
-        stitchMosaicImageTogether();
+        grid.setAdapter(new ImageAdapter(this, imgList));
+        grid.setNumColumns((int) Math.sqrt(imgList.size()));
+        smallImages = imgList;
+    }
+
+
+    /**
+     * Single Responsibility: Print to the imageView.
+     */
+    public void displayImageOnTheImageView(Bitmap bmp, int resourceId) {
+        ImageView imgView = (ImageView) findViewById(resourceId);
+        imgView.setImageBitmap(bmp);
     }
 
     /**
@@ -174,14 +201,60 @@ public class MainActivity extends AppCompatActivity {
      * @param bitmap
      */
     private void fetchColourPerBitmapFromNetwork(Bitmap bitmap) {
+        //Check if the device is connected to the network
+        if (!Utils.isConnected(mContext))
+            Toast.makeText(mContext, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
+
 
     }
 
-    private void stitchMosaicImageTogether() {
+    class stitchMosaicImageTogetherAsync extends AsyncTask<Bitmap, Bitmap, Bitmap> {
+        ArrayList<Bitmap> imagesToBeStitchedTogether;
+        Bitmap bitmap;
+
+        public stitchMosaicImageTogetherAsync(ArrayList<Bitmap> imgList) {
+            super();
+            imagesToBeStitchedTogether = imgList;
+        }
+
+        protected Bitmap doInBackground(Bitmap... arg0) {
+
+            try {
+                //Get the width and height of the smaller chunks
+                int chunkWidth = imagesToBeStitchedTogether.get(0).getWidth();
+                int chunkHeight = imagesToBeStitchedTogether.get(0).getHeight();
+                int widthBlock = (int) Math.sqrt(numberOfBlocks);
+                int heightBlock = (int) Math.sqrt(numberOfBlocks);
+                //create a bitmap of a size which can hold the complete image after merging
+                bitmap = Bitmap.createBitmap(chunkWidth * widthBlock, chunkHeight * heightBlock, Bitmap.Config.ARGB_4444);
+
+                //create a canvas for drawing all those small images
+                Canvas canva = new Canvas(bitmap); //pun intended
+                int count = 0;
+                for (int rows = 0; rows < widthBlock; rows++) {
+                    for (int cols = 0; cols < heightBlock; cols++) {
+                        canva.drawBitmap(imagesToBeStitchedTogether.get(count), chunkWidth * cols, chunkHeight * rows, null);
+                        count++;
+                    }
+                }
+
+            } catch (Exception ex) {
+                //It will probably throw OOM for large chunks. Do nothing for now, ideally run it through crashlytics in production.
+            }
+            return bitmap;
+        }
+
+
+        protected void onPostExecute(Bitmap bitmap) {
+            displayImageOnTheImageView(bitmap, R.id.imageView);
+        }
+    }
+
+    public void stitchMosaicImageTogether(ArrayList<Bitmap> imagesToBeStitchedTogether) {
         try {
             //Get the width and height of the smaller chunks
-            int chunkWidth = smallImages.get(0).getWidth();
-            int chunkHeight = smallImages.get(0).getHeight();
+            int chunkWidth = imagesToBeStitchedTogether.get(0).getWidth();
+            int chunkHeight = imagesToBeStitchedTogether.get(0).getHeight();
 
             //create a bitmap of a size which can hold the complete image after merging
             Bitmap bitmap = Bitmap.createBitmap(chunkWidth * 32, chunkHeight * 32, Bitmap.Config.ARGB_4444);
@@ -191,13 +264,11 @@ public class MainActivity extends AppCompatActivity {
             int count = 0;
             for (int rows = 0; rows < 32; rows++) {
                 for (int cols = 0; cols < 32; cols++) {
-                    canva.drawBitmap(smallImages.get(count), chunkWidth * cols, chunkHeight * rows, null);
+                    canva.drawBitmap(imagesToBeStitchedTogether.get(count), chunkWidth * cols, chunkHeight * rows, null);
                     count++;
                 }
             }
-
-            ImageView imgView = (ImageView) findViewById(R.id.imageView);
-            imgView.setImageBitmap(bitmap);
+            displayImageOnTheImageView(bitmap, R.id.imageView);
         } catch (Exception ex) {
             //It will probably throw OOM for large chunks. Do nothing for now, ideally run it through crashlytics in production.
         }
