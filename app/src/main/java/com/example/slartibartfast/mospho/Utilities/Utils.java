@@ -20,7 +20,8 @@ public class Utils {
      *
      * @param image is a Bitmap object.
      */
-    public static int getAverageDominantColourFromBitmap(Bitmap image) {
+    public static String getAverageDominantColourFromBitmap(Bitmap image) {
+
         int width = image == null ? 0 : image.getWidth();
         int height = image == null ? 0 : image.getHeight();
         int numPixels = width * height;
@@ -41,9 +42,11 @@ public class Utils {
         red = red / numPixels;
         green = green / numPixels;
         blue = blue / numPixels;
-        return getIntFromColor(red, green, blue);
+        String hex = String.format("#%02x%02x%02x", red, green, blue);
+        return hex;
     }
 
+    //
     public static int getIntFromColor(int Red, int Green, int Blue) {
         Red = (Red << 16) & 0x00FF0000; //Shift red 16-bits and mask out other stuff
         Green = (Green << 8) & 0x0000FF00; //Shift Green 8-bits and mask out other stuff

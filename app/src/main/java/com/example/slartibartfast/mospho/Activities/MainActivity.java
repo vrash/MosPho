@@ -23,11 +23,26 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.ImageRequest;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.example.slartibartfast.mospho.Adapters.ImageAdapter;
+import com.example.slartibartfast.mospho.ApplicationConstants;
 import com.example.slartibartfast.mospho.R;
 import com.example.slartibartfast.mospho.Utilities.Utils;
 
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
+
+import javax.net.ssl.HttpsURLConnection;
 
 /*
 MosPho: Display a simple interface at launch.  One button that the user uses to select an image from the
@@ -43,6 +58,7 @@ Not using Palette class, since that would be cheating :)
 */
 
 public class MainActivity extends AppCompatActivity {
+    public final String TAG = this.getLocalClassName();
     private static int RESULT_LOAD_IMAGE = 1;
     Context mContext = this;
     ArrayList<Bitmap> smallImages;
@@ -119,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Checks if the app has permission to write to device storage
+     * Single Responsibility: Checks if the app has permission to write to device storage
      * <p/>
      * If the app does not has permission then the user will be prompted to grant permissions
      *
@@ -137,43 +153,6 @@ public class MainActivity extends AppCompatActivity {
                     REQUEST_EXTERNAL_STORAGE
             );
         }
-    }
-
-    /**
-     * @param bitmap
-     * @param chunkNumbers
-     */
-    public void splitImageIntoChunks(Bitmap bitmap, int chunkNumbers) {
-
-        //For the number of rows and columns of the grid to be displayed
-        int rows, cols;
-
-        //For height and width of the small image chunks
-        int chunkHeight, chunkWidth;
-
-        //To store all the small image chunks in bitmap format in this list
-        ArrayList<Bitmap> chunkedImages = new ArrayList<Bitmap>(chunkNumbers);
-
-        Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, bitmap.getWidth(), bitmap.getHeight(), true);
-
-        rows = cols = (int) Math.sqrt(chunkNumbers);
-        chunkHeight = bitmap.getHeight() / rows;
-        chunkWidth = bitmap.getWidth() / cols;
-
-        //x and y are the pixel positions of the image chunks
-        int yCoord = 0;
-        for (int x = 0; x < rows; x++) {
-            int xCoord = 0;
-            for (int y = 0; y < cols; y++) {
-                chunkedImages.add(Bitmap.createBitmap(scaledBitmap, xCoord, yCoord, chunkWidth, chunkHeight));
-                xCoord += chunkWidth;
-            }
-            yCoord += chunkHeight;
-        }
-
-        displayImageOnTheGrid(chunkedImages);
-        //stitchMosaicImageTogether(smallImages);
-
     }
 
 
@@ -200,34 +179,59 @@ public class MainActivity extends AppCompatActivity {
     }
 
     class fetchAverageColourPerChunkAsync extends AsyncTask<Void, Void, Void> {
+        boolean isThereNetworkMate = true;
+        Bitmap image;
 
         protected Void doInBackground(Void... arg0) {
-            //Check if the device is connected to the network
-            if (!Utils.isConnected(mContext))
-                Toast.makeText(mContext, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
-            newSmallImagesList = new ArrayList<Bitmap>();
-            //Before doing the networky stuff, try fetching the dominant colour and create the mosaic.
-            for (Bitmap chunk : smallImages) {
-                int chunkAverage = Utils.getAverageDominantColourFromBitmap(chunk);
-                Bitmap image = Bitmap.createBitmap(chunk.getWidth(), chunk.getHeight(), Bitmap.Config.ARGB_8888);
-                image.eraseColor(chunkAverage);
-                newSmallImagesList.add(image);
+
+
+            newSmallImagesList = new ArrayList<>();
+            //If there's no internet, just default to the mosaic tile from the source image for good UX.
+            if (!Utils.isConnected(mContext)) {
+                isThereNetworkMate = false;
+                for (Bitmap chunk : smallImages) {
+                    String chunkAverage = Utils.getAverageDominantColourFromBitmap(chunk);
+                    image = Bitmap.createBitmap(chunk.getWidth(), chunk.getHeight(), Bitmap.Config.ARGB_8888);
+                    image.eraseColor(Integer.decode(chunkAverage));
+                    newSmallImagesList.add(image);
+                }
             }
-            smallImages = newSmallImagesList;
+            //Internet -- YESS!
+            // Can use Picasso/Fresco, but again, that would be cheating. :)
+            // Cheating a little with Volley, but Volley is almost a part of Android now, not like I am using Retrofit :P
+            else {
+                for (Bitmap chunk : smallImages) {
+                    String chunkAverage = Utils.getAverageDominantColourFromBitmap(chunk);
+                    // Instantiate the RequestQueue.
+                    String buildUglyURL = ApplicationConstants.URL_OF_MOSAIC_SERVER + chunk.getWidth() + "/" + chunk.getHeight() + "/" + chunkAverage;
+                    RequestQueue queue = Volley.newRequestQueue(mContext);
+                    ImageRequest imageRequest = new ImageRequest(buildUglyURL, new Response.Listener<Bitmap>() {
+                        @Override
+                        public void onResponse(Bitmap response) {
+                            // Assign the response to an ImageView
+                            image = response;
+                        }
+                    }, chunk.getWidth(), chunk.getHeight(), ImageView.ScaleType.FIT_CENTER, Bitmap.Config.ARGB_8888, new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            Log.d(TAG, error.toString());
+                        }
+                    });
+                    //add request to queue
+                    queue.add(imageRequest);
+                    newSmallImagesList.add(image);
+                }
+
+            }
             return null;
         }
 
         protected void onPostExecute(Void bitmap) {
-
+            if (!isThereNetworkMate)
+                Toast.makeText(mContext, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
         }
     }
 
-    /**
-     * Run a seperate thread to parallely fetch colours per row of bitmap from the network
-     */
-    private void fetchColourPerBitmapFromNetwork() {
-
-    }
 
     class stitchMosaicImageTogetherAsync extends AsyncTask<Bitmap, Bitmap, Bitmap> {
         Bitmap bitmap;

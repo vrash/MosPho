@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">MosPho</string>
-    <string name="no_internet">Sorry mate, the internet connection has gone wonkers!</string>
+    <string name="no_internet">No Internet mate, defaulting to a mosaic from your image directly</string>
 </resources>
