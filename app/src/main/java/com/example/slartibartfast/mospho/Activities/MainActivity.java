@@ -7,6 +7,8 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.media.Image;
 import android.net.Uri;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
@@ -15,6 +17,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.GridView;
+import android.widget.ImageView;
 
 
 import com.example.slartibartfast.mospho.Adapters.ImageAdapter;
@@ -25,19 +28,27 @@ import java.util.ArrayList;
 /*
 MosPho: Display a simple interface at launch.  One button that the user uses to select an image from the
 Android Gallery.  Create a mosaic based on the chosen image and save it.
-The mosaic is saved into a file locally(on the phone) and inserted into the Android Gallery.
+Logic is simple overall
+1.) FETCH IMAGE FROM WHEREVER THE USER WANTS TO
+2.) SPLIT IMAGE INTO SMALLER PIECES
+3.) RUN EACH ROW THROUGH THE NETWORK TO FIND THE EQUIVALENT IMAGE
+4.) STITCH THE IMAGE BACK ROW BY ROW
+5.) DISPLAY MOSAIC AND VOILA, WE'RE DONE.
 */
 
 public class MainActivity extends AppCompatActivity {
     private static int RESULT_LOAD_IMAGE = 1;
-
+    ArrayList<Bitmap> smallImages;
+    //Global static for number of chunks to break the images.
+    //Calculated as width * height
+    // For 32X32 = 1024.
+    int numberOfBlocks = 1024;
     // Storage Permissions
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static String[] PERMISSIONS_STORAGE = {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
-
 
     /**
      * Good ol' OnCreate
@@ -90,7 +101,9 @@ public class MainActivity extends AppCompatActivity {
             Bitmap originalImage = BitmapFactory.decodeFile(picturePath);
             //Keep a copy
             Bitmap originalMutable = originalImage.copy(originalImage.getConfig(), true);
-            splitImage(originalImage, 1024);
+            splitImage(originalImage, numberOfBlocks);
+            ImageView imgView = (ImageView) findViewById(R.id.imageView);
+            imgView.setImageBitmap(originalImage);
         }
     }
 
@@ -115,6 +128,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * @param bitmap
+     * @param chunkNumbers
+     */
     private void splitImage(Bitmap bitmap, int chunkNumbers) {
 
         //For the number of rows and columns of the grid to be displayed
@@ -147,5 +164,44 @@ public class MainActivity extends AppCompatActivity {
         GridView grid = (GridView) findViewById(R.id.gridview);
         grid.setAdapter(new ImageAdapter(this, chunkedImages));
         grid.setNumColumns((int) Math.sqrt(chunkedImages.size()));
+        smallImages = chunkedImages;
+        stitchMosaicImageTogether();
     }
+
+    /**
+     * Run a seperate thread to parallely fetch colours per row of bitmap from the network
+     *
+     * @param bitmap
+     */
+    private void fetchColourPerBitmapFromNetwork(Bitmap bitmap) {
+
+    }
+
+    private void stitchMosaicImageTogether() {
+        try {
+            //Get the width and height of the smaller chunks
+            int chunkWidth = smallImages.get(0).getWidth();
+            int chunkHeight = smallImages.get(0).getHeight();
+
+            //create a bitmap of a size which can hold the complete image after merging
+            Bitmap bitmap = Bitmap.createBitmap(chunkWidth * 32, chunkHeight * 32, Bitmap.Config.ARGB_4444);
+
+            //create a canvas for drawing all those small images
+            Canvas canva = new Canvas(bitmap); //pun intended
+            int count = 0;
+            for (int rows = 0; rows < 32; rows++) {
+                for (int cols = 0; cols < 32; cols++) {
+                    canva.drawBitmap(smallImages.get(count), chunkWidth * cols, chunkHeight * rows, null);
+                    count++;
+                }
+            }
+
+            ImageView imgView = (ImageView) findViewById(R.id.imageView);
+            imgView.setImageBitmap(bitmap);
+        } catch (Exception ex) {
+            //It will probably throw OOM for large chunks. Do nothing for now, ideally run it through crashlytics in production.
+        }
+    }
+
+
 }
