@@ -242,6 +242,7 @@ public class MainActivity extends AppCompatActivity {
                         } else {
                             try {
                                 //Barebones HTTP requests to the server
+                                //TODO: If server goes away here, preempt processing and return
                                 java.net.URL url = new java.net.URL(buildUglyURL);
                                 HttpURLConnection connection = (HttpURLConnection) url
                                         .openConnection();
@@ -251,6 +252,7 @@ public class MainActivity extends AppCompatActivity {
                                 myResponseBitmap = BitmapFactory.decodeStream(input);
 
                                 //Add to cache
+
                                 bitmapCache.putBitmap(buildUglyURL, myResponseBitmap);
 
                             } catch (Exception ex) {
