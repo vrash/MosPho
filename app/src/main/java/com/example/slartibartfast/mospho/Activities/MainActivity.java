@@ -48,18 +48,28 @@ Not using Palette class, since that would be cheating :)
 */
 
 public class MainActivity extends AppCompatActivity {
+
     public final String TAG = MainActivity.class.getName();
     private static int RESULT_LOAD_IMAGE = 1;
+
     Context mContext = this;
-    ArrayList<Bitmap> smallImages;
-    ArrayList<Bitmap> newSmallImagesList;
+
+    //My main Arraylists that will hold the bitmaps
+    ArrayList<Bitmap> smallImages;   //Will hold the broken chunks from original image
+    ArrayList<Bitmap> newSmallImagesList; //Will hold the server retrieved image chunks
+
+    //Hello there, in memory cache
     LruBitmapCache bitmapCache;
+
 
     //Global static for number of chunks to break the images.
     //Calculated as width * height
     // For 32X32 = 1024.
     int numberOfBlocks = 1024;
+
+    //Progress is good
     ProgressBar bar;
+
     // Storage Permissions
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static String[] PERMISSIONS_STORAGE = {
@@ -76,6 +86,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        //Ask
         verifyStoragePermissions(this);
         bitmapCache = new LruBitmapCache(mContext);
         bar = (ProgressBar) this.findViewById(R.id.progress);
@@ -154,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * display original image
+     * Single Responsibility: Display original image in an imageview
      *
      * @param bmp
      */
@@ -166,6 +177,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Single Responsibility: Print to the grid.
+     * Deprecated
      *
      * @param imgList
      */
@@ -198,7 +210,11 @@ public class MainActivity extends AppCompatActivity {
         protected Void doInBackground(Void... arg0) {
             try {
                 newSmallImagesList = new ArrayList<>();
-                //If there's no internet/or server not reachable, just default to the mosaic tile from the source image for good UX.
+
+                /*
+                If there's no internet/or server not reachable, just default to the mosaic tile from the
+                 source image for good UX.
+                 */
                 if (!Utils.isConnected(mContext) || !isServerReachable(ApplicationConstants.URL_OF_MOSAIC_SERVER, mContext)) {
                     isThereNetworkMate = false;
                     for (Bitmap chunk : smallImages) {
@@ -208,10 +224,11 @@ public class MainActivity extends AppCompatActivity {
                         newSmallImagesList.add(image);
                     }
                 }
-                // Internet present-- YESS!
-                // Can use Picasso/Fresco, but again, that would be cheating. :)
-                // Cheating a little with Volley, but Volley is almost a part of Android now, not like I am using Retrofit :P
-                // UPDATE: OK Removed Volley now as well, to be purely barebones riding on OKHTTP.
+
+                /* Internet present-- YESS!
+                  Can use Picasso/Fresco, but again, that would be cheating. :)
+                  Cheating a little with Volley, but Volley is almost a part of Android now, not like I am using Retrofit :P
+                  UPDATE: OK Removed Volley now as well, to be purely barebones riding on OKHTTP. */
                 else {
                     for (Bitmap chunk : smallImages) {
                         String chunkAverage = Utils.getAverageDominantColourFromBitmap(chunk);
@@ -224,6 +241,7 @@ public class MainActivity extends AppCompatActivity {
                             counter++;
                         } else {
                             try {
+                                //Barebones HTTP requests to the server
                                 java.net.URL url = new java.net.URL(buildUglyURL);
                                 HttpURLConnection connection = (HttpURLConnection) url
                                         .openConnection();
@@ -251,6 +269,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         protected void onPostExecute(Void bitmap) {
+            //Be a good samaritan and tell the user what you're doing
             if (!isThereNetworkMate)
                 Toast.makeText(mContext, getString(R.string.no_internet), Toast.LENGTH_LONG).show();
         }
@@ -271,6 +290,7 @@ public class MainActivity extends AppCompatActivity {
                 int chunkHeight = newSmallImagesList.get(0).getHeight();
                 int widthBlock = (int) Math.sqrt(numberOfBlocks);
                 int heightBlock = (int) Math.sqrt(numberOfBlocks);
+                
                 //create a bitmap of a size which can hold the complete image after merging
                 bitmap = Bitmap.createBitmap(chunkWidth * widthBlock, chunkHeight * heightBlock, Bitmap.Config.ARGB_8888);
 
