@@ -28,13 +28,13 @@
 <p>There are only two hard things in Computer Science: cache invalidation and naming things</p>
 </blockquote>
 
-<p>Hence the poor name choice. The 's' wasnt there in the original title. </p>
+<p>Hence the poor name choice. The 's' wasn't there in the original title. </p>
 
 <h3>
 <a id="implementation" class="anchor" href="#implementation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Implementation</h3>
 
-<p>Bare bones. As much background processing as possible. No Picasso/Fresco/Retrofit and other things. No real OOP. Does the job for an MVP though and I'd be happy to ship and measure progress before building a beast. If there's no network, I pick up average chunk colours and display the mosaic.
-Overall core logic time taken -- About 3.5 hours. <a href="https://github.com/vrash/MosPho/commits/master">Commit History</a> gives a rudimentary sense of progress</p>
+<p>Bare bones. As much background processing as possible. No Picasso/Fresco/Retrofit and other things. No real OOP. Does the job for an MVP though, can be put into a full blow app as a module to ship. If there's no network, I pick up average chunk colours and display the mosaic. Url - Bitmaps are cached in a LRU bitmap cache, so it should get faster on more use. No disk cache for now. No tests for now, but stubs can easily be put in for critical pieces and a latch based test mechanism for the async tasks. 
+Overall core logic time taken -- About 3.5 - 4 hours. <a href="https://github.com/vrash/MosPho/commits/master">Commit History</a> gives a rudimentary sense of progress</p>
 
 <h3>
 <a id="logic" class="anchor" href="#logic" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Logic</h3>
@@ -44,8 +44,8 @@ Overall core logic time taken -- About 3.5 hours. <a href="https://github.com/vr
 <ul>
 <li>FETCH IMAGE FROM WHEREVER THE USER WANTS TO</li>
 <li>SPLIT IMAGE INTO SMALLER PIECES</li>
-<li>RUN EACH ROW THROUGH THE NETWORK TO FIND THE EQUIVALENT IMAGE</li>
-<li>STITCH THE IMAGE BACK</li>
+<li>RUN EACH ROW THROUGH THE NETWORK TO FIND THE EQUIVALENT IMAGE (OR CACHE)</li>
+<li>STITCH THE IMAGE BACK (TODO: ROW BY ROW STITCHING)</li>
 <li>DISPLAY MOSAIC AND VOILA, WE'RE DONE.</li>
 </ul>
 
@@ -57,7 +57,20 @@ Overall core logic time taken -- About 3.5 hours. <a href="https://github.com/vr
 <h3>
 <a id="screengrab" class="anchor" href="#screengrab" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>ScreenGrab</h3>
 
+<h3>
+<a id="32-x-32-1024-dpi" class="anchor" href="#32-x-32-1024-dpi" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>32 X 32 (1024 dpi)</h3>
+
 <p><img src="https://cloud.githubusercontent.com/assets/942418/20457410/ef125624-aeb0-11e6-87f4-9542853403a5.png" alt=""></p>
+
+<h3>
+<a id="45-x-45-2048-dpi" class="anchor" href="#45-x-45-2048-dpi" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>45 X 45 (2048 dpi)</h3>
+
+<p><img src="https://cloud.githubusercontent.com/assets/942418/20460626/96d073de-af0e-11e6-9465-f9fe5f8915d7.png" alt=""></p>
+
+<h3>
+<a id="64-x-64-4096-dpi" class="anchor" href="#64-x-64-4096-dpi" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>64 X 64 (4096 dpi)</h3>
+
+<p><img src="https://cloud.githubusercontent.com/assets/942418/20460618/331c4ce6-af0e-11e6-8c94-75a4bbf48664.png" alt=""></p>
 
 <h3>
 <a id="authors-and-contributors" class="anchor" href="#authors-and-contributors" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Authors and Contributors</h3>
