@@ -186,6 +186,9 @@ public class MainActivity extends AppCompatActivity {
         imgView.setImageBitmap(bmp);
     }
 
+    /**
+     * This Async task fetches colour per chunk and retrieves it from the url
+     */
     class fetchAverageColourPerChunkAsync extends AsyncTask<Void, Void, Void> {
         boolean isThereNetworkMate = true;
         Bitmap image;
@@ -254,6 +257,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    /**
+     * This AsyncTask stitches all the pieces retrieved together
+     */
     class stitchMosaicImageTogetherAsync extends AsyncTask<Bitmap, Bitmap, Bitmap> {
         Bitmap bitmap;
 
@@ -290,6 +296,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * This AsyncTask splits the images into chunks
+     */
     class splitImageIntoChunksAsync extends AsyncTask<Bitmap, ArrayList<Bitmap>, ArrayList<Bitmap>> {
         Bitmap bitmap;
         int chunkNumbers;
