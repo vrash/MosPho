@@ -18,35 +18,19 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.ImageLoader;
-import com.android.volley.toolbox.ImageRequest;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
-import com.example.slartibartfast.mospho.Adapters.ImageAdapter;
 import com.example.slartibartfast.mospho.ApplicationConstants;
 import com.example.slartibartfast.mospho.Network.LruBitmapCache;
-import com.example.slartibartfast.mospho.Network.VolleySingleton;
 import com.example.slartibartfast.mospho.R;
 import com.example.slartibartfast.mospho.Utilities.Utils;
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
-
-import javax.net.ssl.HttpsURLConnection;
 
 /*
 MosPho: Display a simple interface at launch.  One button that the user uses to select an image from the
@@ -68,10 +52,12 @@ public class MainActivity extends AppCompatActivity {
     ArrayList<Bitmap> smallImages;
     ArrayList<Bitmap> newSmallImagesList;
     LruBitmapCache bitmapCache;
+
     //Global static for number of chunks to break the images.
     //Calculated as width * height
     // For 32X32 = 1024.
     int numberOfBlocks = 1024;
+    ProgressBar bar;
     // Storage Permissions
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static String[] PERMISSIONS_STORAGE = {
@@ -90,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         verifyStoragePermissions(this);
         bitmapCache = new LruBitmapCache(mContext);
+        bar = (ProgressBar) this.findViewById(R.id.progress);
         //Simple button to select an image from the device
         Button buttonLoadImage = (Button) findViewById(R.id.buttonLoadPicture);
 
@@ -133,7 +120,9 @@ public class MainActivity extends AppCompatActivity {
             //Keep a copy
             Bitmap originalMutable = originalImage.copy(originalImage.getConfig(), true);
 
+            displayOriginalImage(originalImage);
             //Split the image into chunks
+            bar.setVisibility(View.VISIBLE);
             new splitImageIntoChunksAsync(originalImage, numberOfBlocks).executeOnExecutor(AsyncTask.SERIAL_EXECUTOR);
             new fetchAverageColourPerChunkAsync().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR);
             new stitchMosaicImageTogetherAsync().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR);
@@ -162,6 +151,16 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * display original image
+     *
+     * @param bmp
+     */
+    public void displayOriginalImage(Bitmap bmp) {
+        //Getting the grid view and setting an adapter to it
+        ImageView imgView = (ImageView) findViewById(R.id.orgImageView);
+        imgView.setImageBitmap(bmp);
+    }
 
     /**
      * Single Responsibility: Print to the grid.
@@ -170,10 +169,10 @@ public class MainActivity extends AppCompatActivity {
      */
     public void displayImageOnTheGrid(ArrayList<Bitmap> imgList) {
         //Getting the grid view and setting an adapter to it
-        GridView grid = (GridView) findViewById(R.id.gridview);
+        /*GridView grid = (GridView) findViewById(R.id.gridview);
         grid.setAdapter(new ImageAdapter(this, imgList));
         grid.setNumColumns((int) Math.sqrt(imgList.size()));
-        smallImages = imgList;
+        smallImages = imgList;*/
     }
 
 
@@ -189,6 +188,7 @@ public class MainActivity extends AppCompatActivity {
         boolean isThereNetworkMate = true;
         Bitmap image;
         String buildUglyURL;
+        int counter = 0;
 
         protected Void doInBackground(Void... arg0) {
             try {
@@ -203,55 +203,44 @@ public class MainActivity extends AppCompatActivity {
                         newSmallImagesList.add(image);
                     }
                 }
-                //Internet -- YESS!
+                // Internet present-- YESS!
                 // Can use Picasso/Fresco, but again, that would be cheating. :)
                 // Cheating a little with Volley, but Volley is almost a part of Android now, not like I am using Retrofit :P
+                // UPDATE: OK Removed Volley now as well, to be purely barebones riding on OKHTTP.
                 else {
                     for (Bitmap chunk : smallImages) {
                         String chunkAverage = Utils.getAverageDominantColourFromBitmap(chunk);
-                        // Instantiate the RequestQueue.
                         buildUglyURL = ApplicationConstants.URL_OF_MOSAIC_SERVER + chunk.getWidth() + "/" + chunk.getHeight() + "/" + chunkAverage;
-                        //String buildUglyURL = "http://l.yimg.com/a/i/us/we/52/21.gif";
-                        //RequestQueue queue = Volley.newRequestQueue(mContext);
-                        RequestQueue queue = VolleySingleton.getInstance(mContext.getApplicationContext()).
-                                getRequestQueue();
-
+                        Bitmap myResponseBitmap = null;
+                        //Check in the LRU cache and do a direct add if present.
+                        //TODO: The optimization here should be that the data should populate row-wise
                         if (bitmapCache.getBitmap(buildUglyURL) != null) {
                             newSmallImagesList.add(bitmapCache.getBitmap(buildUglyURL));
+                            counter++;
                         } else {
-                            ImageRequest imageRequest = new ImageRequest(buildUglyURL, new Response.Listener<Bitmap>() {
-                                @Override
-                                public void onResponse(Bitmap response) {
-                                    // Assign the response to an ImageView
-                                    newSmallImagesList.add(response);
-                                    bitmapCache.putBitmap(buildUglyURL, response);
-                                }
-                            }, chunk.getWidth(), chunk.getHeight(), ImageView.ScaleType.FIT_CENTER, Bitmap.Config.ARGB_8888, new Response.ErrorListener() {
-                                @Override
-                                public void onErrorResponse(VolleyError error) {
-                                    String body;
-                                    //get status code here
-                                    String statusCode = String.valueOf(error.networkResponse.statusCode);
-                                    //get response body and parse with appropriate encoding
-                                    if (error.networkResponse.data != null) {
-                                        try {
-                                            body = new String(error.networkResponse.data, "UTF-8");
-                                        } catch (Exception e) {
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                    Log.d(TAG, error.toString());
-                                }
-                            });
-                            //add request to queue
-                            VolleySingleton.getInstance(mContext).addToRequestQueue(imageRequest);
+                            try {
+                                java.net.URL url = new java.net.URL(buildUglyURL);
+                                HttpURLConnection connection = (HttpURLConnection) url
+                                        .openConnection();
+                                connection.setDoInput(true);
+                                connection.connect();
+                                InputStream input = connection.getInputStream();
+                                myResponseBitmap = BitmapFactory.decodeStream(input);
+
+                                //Add to cache
+                                bitmapCache.putBitmap(buildUglyURL, myResponseBitmap);
+
+                            } catch (Exception ex) {
+                                Log.e(TAG, ex.getMessage());
+                            }
+                            newSmallImagesList.add(myResponseBitmap);
                         }
                     }
 
                 }
 
             } catch (Exception ex) {
-                //Catch OOM's here
+                Log.e(TAG, ex.getMessage());
             }
             return null;
         }
@@ -275,7 +264,7 @@ public class MainActivity extends AppCompatActivity {
                 int widthBlock = (int) Math.sqrt(numberOfBlocks);
                 int heightBlock = (int) Math.sqrt(numberOfBlocks);
                 //create a bitmap of a size which can hold the complete image after merging
-                bitmap = Bitmap.createBitmap(chunkWidth * widthBlock, chunkHeight * heightBlock, Bitmap.Config.ARGB_4444);
+                bitmap = Bitmap.createBitmap(chunkWidth * widthBlock, chunkHeight * heightBlock, Bitmap.Config.ARGB_8888);
 
                 //create a canvas for drawing all those small images
                 Canvas canva = new Canvas(bitmap); //pun intended
@@ -288,13 +277,14 @@ public class MainActivity extends AppCompatActivity {
                 }
 
             } catch (Exception ex) {
-                //It will probably throw OOM for large chunks. Do nothing for now, ideally run it through crashlytics in production.
+                Log.e(TAG, ex.getMessage());
             }
             return bitmap;
         }
 
         protected void onPostExecute(Bitmap bitmap) {
             displayImageOnTheImageView(bitmap, R.id.imageView);
+            bar.setVisibility(View.GONE);
         }
     }
 
@@ -339,10 +329,6 @@ public class MainActivity extends AppCompatActivity {
 
         }
 
-
-        protected void onPostExecute(ArrayList<Bitmap> chunkedImages) {
-            displayImageOnTheGrid(chunkedImages);
-        }
     }
 
 

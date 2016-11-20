@@ -5,32 +5,37 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 /**
- * Created by slartibartfast on 11/19/16.
+ * Created by slartibartfast on 11/20/16.
  */
 public class MainActivityTest {
-
     @Test
-    public void testVerifyStoragePermissions() throws Exception {
+    public void onCreate() throws Exception {
 
     }
 
     @Test
-    public void testSplitImageIntoChunks() throws Exception {
+    public void onActivityResult() throws Exception {
 
     }
 
     @Test
-    public void testDisplayImageOnTheGrid() throws Exception {
+    public void verifyStoragePermissions() throws Exception {
 
     }
 
     @Test
-    public void testDisplayImageOnTheImageView() throws Exception {
+    public void displayOriginalImage() throws Exception {
 
     }
 
     @Test
-    public void testStitchMosaicImageTogether() throws Exception {
+    public void displayImageOnTheGrid() throws Exception {
 
     }
+
+    @Test
+    public void displayImageOnTheImageView() throws Exception {
+
+    }
+
 }
