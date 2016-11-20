@@ -77,7 +77,14 @@ public class Utils {
         return getIntFromColor(red, green, blue);
     }
 
-    //
+    /**
+     * Get int from RGB
+     *
+     * @param Red
+     * @param Green
+     * @param Blue
+     * @return
+     */
     public static int getIntFromColor(int Red, int Green, int Blue) {
         Red = (Red << 16) & 0x00FF0000; //Shift red 16-bits and mask out other stuff
         Green = (Green << 8) & 0x0000FF00; //Shift Green 8-bits and mask out other stuff
@@ -99,6 +106,13 @@ public class Utils {
         return (info != null && info.isConnected());
     }
 
+
+    /**
+     * Check server Connectivity
+     * @param serverURL
+     * @param context
+     * @return
+     */
     public static boolean isServerReachable(String serverURL, Context context) {
 
         ConnectivityManager connMan = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
