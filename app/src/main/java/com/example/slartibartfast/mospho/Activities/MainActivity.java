@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
     //Global static for number of chunks to break the images.
     //Calculated as width * height
     // For 32X32 = 1024.
-    int numberOfBlocks = 1024;
+    int numberOfBlocks = 2048;
     ProgressBar bar;
     // Storage Permissions
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
