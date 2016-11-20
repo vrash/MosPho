@@ -40,7 +40,7 @@ Android Gallery.  Create a mosaic based on the chosen image and save it.
 Logic is simple overall
 1.) FETCH IMAGE FROM WHEREVER THE USER WANTS TO
 2.) SPLIT IMAGE INTO SMALLER PIECES
-3.) RUN EACH ROW THROUGH THE NETWORK TO FIND THE EQUIVALENT IMAGE
+3.) RUN  THROUGH THE NETWORK TO FIND THE EQUIVALENT IMAGE
 4.) STITCH THE IMAGE BACK ROW BY ROW
 5.) DISPLAY MOSAIC AND VOILA, WE'RE DONE.
 
@@ -130,12 +130,12 @@ public class MainActivity extends AppCompatActivity {
 
             // Create a mutable Bitmap
             Bitmap originalImage = BitmapFactory.decodeFile(picturePath);
-            //Keep a copy
-            Bitmap originalMutable = originalImage.copy(originalImage.getConfig(), true);
-
             displayOriginalImage(originalImage);
+
             //Split the image into chunks
             bar.setVisibility(View.VISIBLE);
+
+            //The three steps, on async threads, sequentially.
             new splitImageIntoChunksAsync(originalImage, numberOfBlocks).executeOnExecutor(AsyncTask.SERIAL_EXECUTOR);
             new fetchAverageColourPerChunkAsync().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR);
             new stitchMosaicImageTogetherAsync().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR);
@@ -290,7 +290,7 @@ public class MainActivity extends AppCompatActivity {
                 int chunkHeight = newSmallImagesList.get(0).getHeight();
                 int widthBlock = (int) Math.sqrt(numberOfBlocks);
                 int heightBlock = (int) Math.sqrt(numberOfBlocks);
-                
+
                 //create a bitmap of a size which can hold the complete image after merging
                 bitmap = Bitmap.createBitmap(chunkWidth * widthBlock, chunkHeight * heightBlock, Bitmap.Config.ARGB_8888);
 
