@@ -32,6 +32,8 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 
+import static com.example.slartibartfast.mospho.Utilities.Utils.isServerReachable;
+
 /*
 MosPho: Display a simple interface at launch.  One button that the user uses to select an image from the
 Android Gallery.  Create a mosaic based on the chosen image and save it.
@@ -193,8 +195,8 @@ public class MainActivity extends AppCompatActivity {
         protected Void doInBackground(Void... arg0) {
             try {
                 newSmallImagesList = new ArrayList<>();
-                //If there's no internet, just default to the mosaic tile from the source image for good UX.
-                if (!Utils.isConnected(mContext)) {
+                //If there's no internet/or server not reachable, just default to the mosaic tile from the source image for good UX.
+                if (!Utils.isConnected(mContext) || !isServerReachable(ApplicationConstants.URL_OF_MOSAIC_SERVER, mContext)) {
                     isThereNetworkMate = false;
                     for (Bitmap chunk : smallImages) {
                         int chunkAverage = Utils.getAverageIntDominantColourFromBitmap(chunk);
@@ -210,7 +212,7 @@ public class MainActivity extends AppCompatActivity {
                 else {
                     for (Bitmap chunk : smallImages) {
                         String chunkAverage = Utils.getAverageDominantColourFromBitmap(chunk);
-                        buildUglyURL = ApplicationConstants.URL_OF_MOSAIC_SERVER + chunk.getWidth() + "/" + chunk.getHeight() + "/" + chunkAverage;
+                        buildUglyURL = ApplicationConstants.URL_OF_MOSAIC_SERVER + "color/" + chunk.getWidth() + "/" + chunk.getHeight() + "/" + chunkAverage;
                         Bitmap myResponseBitmap = null;
                         //Check in the LRU cache and do a direct add if present.
                         //TODO: The optimization here should be that the data should populate row-wise
@@ -247,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
 
         protected void onPostExecute(Void bitmap) {
             if (!isThereNetworkMate)
-                Toast.makeText(mContext, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
+                Toast.makeText(mContext, getString(R.string.no_internet), Toast.LENGTH_LONG).show();
         }
     }
 

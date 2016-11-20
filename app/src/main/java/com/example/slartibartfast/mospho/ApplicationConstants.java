@@ -7,6 +7,6 @@ import android.app.Application;
  */
 public class ApplicationConstants extends Application {
 
-    public static String URL_OF_MOSAIC_SERVER = "http://10.0.2.2:8765/color/";
+    public static String URL_OF_MOSAIC_SERVER = "http://10.0.2.2:8765/";
 
 }
